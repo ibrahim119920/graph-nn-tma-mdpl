@@ -1,0 +1,5 @@
+/data_pendukung
+gnn_train_test_dataset.npz
+sample_submission.csv
+test.csv
+train.csv
