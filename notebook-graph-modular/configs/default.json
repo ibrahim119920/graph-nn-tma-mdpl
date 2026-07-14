@@ -1,0 +1,37 @@
+{
+  "project_name": "hydro-temporal-gnn",
+  "workspace_root": "..",
+  "paths": {
+    "raw_data_root": "datasets",
+    "dataset": "notebook-graph-modular/outputs/data/gnn_train_test_dataset.npz",
+    "checkpoint": "notebook-graph-modular/outputs/checkpoints/best_temporal_gnn.pt",
+    "sample_submission": "datasets/sample_submission.csv",
+    "submission": "notebook-graph-modular/outputs/submissions/submission.csv",
+    "artifact_dir": "notebook-graph-modular/outputs/experiments",
+    "log_dir": "notebook-graph-modular/outputs/logs"
+  },
+  "model": {
+    "gcn_hidden": 64,
+    "gru_hidden": 64,
+    "dropout": 0.2
+  },
+  "training": {
+    "batch_size": 64,
+    "epochs": 100,
+    "learning_rate": 0.001,
+    "weight_decay": 0.00001,
+    "patience": 15,
+    "validation_ratio": 0.1,
+    "huber_beta": 0.5,
+    "scheduler_factor": 0.5,
+    "scheduler_patience": 5
+  },
+  "inference": {
+    "n_lags": 11,
+    "time_window": 12,
+    "train_end": "2025-09-18 18:00:00"
+  },
+  "logging": {
+    "level": "INFO"
+  }
+}
