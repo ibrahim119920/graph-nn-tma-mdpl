@@ -15,6 +15,7 @@ def build_temporal_gnn(
     gcn_hidden: int = 64,
     gru_hidden: int = 64,
     dropout: float = 0.2,
+    spatial_residual: bool = False,
 ) -> TemporalGNN:
     return TemporalGNN(
         num_nodes,
@@ -23,6 +24,7 @@ def build_temporal_gnn(
         gcn_hidden=gcn_hidden,
         gru_hidden=gru_hidden,
         dropout=dropout,
+        spatial_residual=spatial_residual,
     )
 
 

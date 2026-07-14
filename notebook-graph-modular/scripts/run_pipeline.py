@@ -242,6 +242,7 @@ def _validate_stage_contract(config, stage: str) -> None:
                 checkpoint,
                 gcn_hidden=config.model.gcn_hidden,
                 gru_hidden=config.model.gru_hidden,
+                spatial_residual=config.model.spatial_residual,
             )
 
 

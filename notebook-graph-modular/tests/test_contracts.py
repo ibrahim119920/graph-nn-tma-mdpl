@@ -62,6 +62,19 @@ class DatasetAndModelContractTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "nodes/features"):
             model(torch.zeros((1, 2, 2, 4), dtype=torch.float32))
 
+    def test_spatial_residual_model_preserves_output_contract(self):
+        model = TemporalGNN(
+            2,
+            3,
+            np.eye(2, dtype=np.float32),
+            spatial_residual=True,
+        ).eval()
+        with torch.no_grad():
+            output = model(torch.zeros((1, 2, 2, 3), dtype=torch.float32))
+        self.assertTrue(model.spatial_residual)
+        self.assertEqual(tuple(output.shape), (1, 2))
+        self.assertTrue(torch.isfinite(output).all())
+
 
 if __name__ == "__main__":
     unittest.main()

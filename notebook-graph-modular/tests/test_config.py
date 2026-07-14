@@ -15,6 +15,7 @@ class ConfigAndArtifactTest(unittest.TestCase):
         config = load_project_config(PROJECT_ROOT / "configs/default.json")
         self.assertEqual(config.model.gcn_hidden, 64)
         self.assertEqual(config.model.gru_hidden, 64)
+        self.assertTrue(config.model.spatial_residual)
         self.assertEqual(config.training.epochs, 100)
         self.assertEqual(config.inference.n_lags, 11)
         self.assertTrue(config.paths.dataset.is_absolute())

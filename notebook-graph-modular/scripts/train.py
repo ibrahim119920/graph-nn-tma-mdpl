@@ -74,6 +74,7 @@ def train_baseline(
     gcn_hidden = config.model.gcn_hidden if config else 64
     gru_hidden = config.model.gru_hidden if config else 64
     dropout = config.model.dropout if config else 0.2
+    spatial_residual = config.model.spatial_residual if config else False
 
     def emit(message: str) -> None:
         logger.info(message) if logger else print(message)
@@ -124,6 +125,7 @@ def train_baseline(
         gcn_hidden=gcn_hidden,
         gru_hidden=gru_hidden,
         dropout=dropout,
+        spatial_residual=spatial_residual,
     )
     if gpu_count >= 2:
         model = nn.DataParallel(model, device_ids=list(range(gpu_count)))
@@ -173,6 +175,7 @@ def train_baseline(
             time_window=features.shape[1],
             node_order=node_order,
             feature_columns=feature_columns,
+            spatial_residual=spatial_residual,
         ),
     )
 
@@ -220,6 +223,7 @@ def train_baseline(
             "num_nodes": features.shape[2],
             "num_features": features.shape[3],
             "time_window": features.shape[1],
+            "spatial_residual": spatial_residual,
             "node_order": node_order,
             "feature_columns": feature_columns,
             "split_summary": {

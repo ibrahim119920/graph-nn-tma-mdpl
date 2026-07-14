@@ -18,6 +18,7 @@ class TemporalGNN(nn.Module):
         gcn_hidden: int = 64,
         gru_hidden: int = 64,
         dropout: float = 0.2,
+        spatial_residual: bool = False,
     ):
         super().__init__()
         self.register_buffer(
@@ -25,6 +26,7 @@ class TemporalGNN(nn.Module):
         )
         self.num_nodes = num_nodes
         self.num_features = num_features
+        self.spatial_residual = spatial_residual
 
         self.gcn1 = GCNLayer(num_features, gcn_hidden)
         self.local_skip = nn.Linear(num_features, gcn_hidden)
@@ -63,8 +65,10 @@ class TemporalGNN(nn.Module):
             ) + self.local_skip(features[:, time_index])
             hidden = self.act(hidden)
             hidden = self.drop(hidden)
-            hidden = self.gcn2(hidden, self.A_norm)
-            hidden = self.act(hidden)
+            spatial_hidden = self.gcn2(hidden, self.A_norm)
+            if self.spatial_residual:
+                spatial_hidden = spatial_hidden + hidden
+            hidden = self.act(spatial_hidden)
             gcn_output.append(hidden)
 
         hidden_sequence = torch.stack(gcn_output, dim=1)

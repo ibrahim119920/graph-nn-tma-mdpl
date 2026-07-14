@@ -129,6 +129,7 @@ def build_baseline_checkpoint_payload(
     time_window: int,
     node_order: list[str] | None = None,
     feature_columns: list[str] | None = None,
+    spatial_residual: bool = False,
 ) -> dict:
     payload = {
         "model_state_dict": unwrap_model(model).state_dict(),
@@ -144,6 +145,7 @@ def build_baseline_checkpoint_payload(
         "num_nodes": num_nodes,
         "num_features": num_features,
         "time_window": time_window,
+        "spatial_residual": spatial_residual,
     }
     if node_order is not None:
         payload["node_order"] = list(node_order)
@@ -199,6 +201,7 @@ def validate_checkpoint_model_compatibility(
     *,
     gcn_hidden: int,
     gru_hidden: int,
+    spatial_residual: bool | None = None,
 ) -> None:
     """Check configured hidden dimensions against serialized state before load."""
     validate_checkpoint_payload(checkpoint)
@@ -217,6 +220,15 @@ def validate_checkpoint_model_compatibility(
                 "Checkpoint tidak kompatibel dengan model config: "
                 f"{key} memiliki shape {actual_shape}, mengharapkan {expected_shape}."
             )
+    if (
+        spatial_residual is not None
+        and bool(checkpoint.get("spatial_residual", False))
+        != spatial_residual
+    ):
+        raise ValueError(
+            "Checkpoint tidak kompatibel dengan model config: "
+            "spatial_residual berbeda."
+        )
 
 
 def load_temporal_gnn_from_checkpoint(
@@ -237,6 +249,7 @@ def load_temporal_gnn_from_checkpoint(
         gcn_hidden=gcn_hidden,
         gru_hidden=gru_hidden,
         dropout=dropout,
+        spatial_residual=bool(checkpoint.get("spatial_residual", False)),
     )
     try:
         model.load_state_dict(checkpoint["model_state_dict"])

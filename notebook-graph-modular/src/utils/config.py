@@ -24,6 +24,7 @@ class ModelConfig:
     gcn_hidden: int = 64
     gru_hidden: int = 64
     dropout: float = 0.2
+    spatial_residual: bool = False
 
 
 @dataclass(frozen=True)
@@ -143,6 +144,8 @@ def validate_project_config(config: ProjectConfig) -> None:
         raise ValueError("Dimensi hidden model harus positif.")
     if not 0 <= config.model.dropout < 1:
         raise ValueError("dropout harus berada pada [0, 1).")
+    if not isinstance(config.model.spatial_residual, bool):
+        raise ValueError("model.spatial_residual harus boolean.")
     if config.inference.n_lags <= 0 or config.inference.time_window <= 0:
         raise ValueError("n_lags dan time_window harus positif.")
     if not isinstance(config.runtime.seed, int) or config.runtime.seed < 0:
