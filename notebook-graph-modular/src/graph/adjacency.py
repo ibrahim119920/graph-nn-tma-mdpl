@@ -43,8 +43,13 @@ def build_normalized_adjacency(
 
     adjacency = adjacency + np.eye(num_nodes, dtype=np.float32)
     degree = adjacency.sum(axis=1)
-    degree_inverse_sqrt = np.power(degree, -0.5, where=degree > 0)
-    degree_inverse_sqrt[degree == 0] = 0.0
+    degree_inverse_sqrt = np.zeros_like(degree)
+    np.power(
+        degree,
+        -0.5,
+        out=degree_inverse_sqrt,
+        where=degree > 0,
+    )
     degree_matrix = np.diag(degree_inverse_sqrt)
     normalized = degree_matrix @ adjacency @ degree_matrix
     return normalized.astype(np.float32)

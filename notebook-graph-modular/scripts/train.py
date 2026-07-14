@@ -213,6 +213,29 @@ def train_baseline(
         "result": result,
         "node_order": node_order,
         "checkpoint_path": Path(checkpoint_path),
+        "checkpoint_metadata": {
+            "path": Path(checkpoint_path),
+            "best_epoch": result.best_epoch,
+            "best_rollout_validation_rmse_normalized": result.best_metric,
+            "num_nodes": features.shape[2],
+            "num_features": features.shape[3],
+            "time_window": features.shape[1],
+            "node_order": node_order,
+            "feature_columns": feature_columns,
+            "split_summary": {
+                "validation_ratio": validation_ratio,
+                "train_samples": n_train,
+                "validation_samples": n_validation,
+                "train_datetime_start": str(training_datetimes[:n_train].min()),
+                "train_datetime_end": str(training_datetimes[:n_train].max()),
+                "validation_datetime_start": str(
+                    training_datetimes[n_train:].min()
+                ),
+                "validation_datetime_end": str(
+                    training_datetimes[n_train:].max()
+                ),
+            },
+        },
     }
 
 

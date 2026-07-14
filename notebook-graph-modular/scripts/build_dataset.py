@@ -184,6 +184,14 @@ def build_dataset_artifact(
         "feature_count": len(feature_columns),
         "train_timesteps": len(training_datetimes),
         "test_timesteps": len(test_valid_timesteps),
+        "node_order": node_order,
+        "feature_columns": feature_columns,
+        "observation_datetime_start": str(observation_datetimes.min()),
+        "observation_datetime_end": str(observation_datetimes.max()),
+        "training_datetime_start": str(pd.DatetimeIndex(training_datetimes).min()),
+        "training_datetime_end": str(pd.DatetimeIndex(training_datetimes).max()),
+        "test_datetime_start": str(test_valid_timesteps.min()),
+        "test_datetime_end": str(test_valid_timesteps.max()),
     }
 
 
@@ -201,4 +209,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

@@ -129,3 +129,39 @@ def save_submission(submission: pd.DataFrame, path: str | Path) -> None:
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
     submission.to_csv(destination, index=False)
+
+
+def summarize_submission(submission: pd.DataFrame) -> dict[str, object]:
+    """Return a compact, JSON-safe report without persisting predictions."""
+    required_columns = {"id", "tma_mdpl"}
+    missing_columns = sorted(required_columns - set(submission.columns))
+    if missing_columns:
+        raise ValueError(
+            "Submission tidak dapat diringkas; kolom hilang: "
+            f"{missing_columns}"
+        )
+    if submission.empty:
+        raise ValueError("Submission kosong.")
+
+    predictions = pd.to_numeric(
+        submission["tma_mdpl"], errors="raise"
+    ).to_numpy(dtype=np.float64)
+    non_finite = int((~np.isfinite(predictions)).sum())
+    if non_finite:
+        raise ValueError("Submission memiliki prediksi non-finite.")
+
+    return {
+        "columns": list(submission.columns),
+        "rows": int(submission.shape[0]),
+        "id_missing": int(submission["id"].isna().sum()),
+        "id_unique": int(submission["id"].nunique(dropna=False)),
+        "id_duplicate": int(submission["id"].duplicated().sum()),
+        "prediction_missing": int(submission["tma_mdpl"].isna().sum()),
+        "prediction_non_finite": non_finite,
+        "prediction_unique_values": int(pd.Series(predictions).nunique()),
+        "prediction_min": float(predictions.min()),
+        "prediction_max": float(predictions.max()),
+        "prediction_mean": float(predictions.mean()),
+        "prediction_median": float(np.median(predictions)),
+        "prediction_std": float(predictions.std()),
+    }

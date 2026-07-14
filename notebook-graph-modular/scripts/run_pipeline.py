@@ -13,6 +13,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from scripts.evaluate import evaluate_checkpoint
 from scripts.make_submission import make_submission
 from scripts.train import train_baseline
+from src.inference import summarize_submission
 from src.utils import (
     ExperimentArtifactStore,
     configure_logging,
@@ -99,7 +100,12 @@ def run_from_config(
             result["training"] = training
             artifacts.write_json(
                 "training_history.json",
-                training["result"].history_dict(),
+                training["result"].history_dict(
+                    epochs_requested=config.training.epochs
+                ),
+            )
+            artifacts.write_json(
+                "checkpoint_summary.json", training["checkpoint_metadata"]
             )
 
         if stage in {"evaluate", "pipeline"}:
@@ -130,22 +136,43 @@ def run_from_config(
             )
             result["submission"] = submission
             result["inference"] = inference
-            artifacts.write_json(
-                "submission_summary.json",
+            submission_summary = summarize_submission(submission)
+            submission_summary.update(
                 {
                     "path": config.paths.submission,
-                    "rows": submission.shape[0],
                     "predicted_timesteps": len(inference.predictions),
                     "skipped_timesteps": len(inference.skipped_datetimes),
                     "filled_training_cells": inference.filled_training_cells,
-                },
+                    "fallback_rows": inference.fallback_count,
+                }
+            )
+            artifacts.write_json(
+                "submission_summary.json", submission_summary
             )
 
-        artifacts.update_manifest(
-            status="completed",
-            checkpoint=str(config.paths.checkpoint),
-            submission=str(config.paths.submission),
-        )
+        manifest_updates = {
+            "status": "completed",
+            "checkpoint": str(config.paths.checkpoint),
+            "submission": str(config.paths.submission),
+        }
+        if "training" in result:
+            training_result = result["training"]["result"]
+            manifest_updates.update(
+                {
+                    "epochs_ran": len(training_result.records),
+                    "best_epoch": training_result.best_epoch,
+                    "best_rollout_validation_rmse_normalized": (
+                        training_result.best_metric
+                    ),
+                    "stopped_early": training_result.stopped_early,
+                    "stop_reason": (
+                        "early_stopping"
+                        if training_result.stopped_early
+                        else "max_epochs_reached"
+                    ),
+                }
+            )
+        artifacts.update_manifest(**manifest_updates)
         logger.info("Run %s selesai", artifacts.run_id)
         return result
     except Exception as error:

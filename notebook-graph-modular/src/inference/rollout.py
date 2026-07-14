@@ -62,6 +62,7 @@ class InferenceResult:
     skipped_datetimes: list[pd.Timestamp]
     filled_training_cells: int
     feature_spec: AutoregressiveFeatureSpec
+    fallback_count: int = 0
 
 
 def rebuild_water_window(

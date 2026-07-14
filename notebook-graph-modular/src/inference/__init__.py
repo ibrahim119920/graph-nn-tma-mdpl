@@ -11,6 +11,7 @@ from .submission import (
     parse_sample_submission,
     predictions_to_frame,
     save_submission,
+    summarize_submission,
 )
 
 __all__ = [
@@ -22,5 +23,5 @@ __all__ = [
     "predictions_to_frame",
     "rebuild_water_window",
     "save_submission",
+    "summarize_submission",
 ]
-

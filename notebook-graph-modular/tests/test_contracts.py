@@ -1,4 +1,5 @@
 import unittest
+import warnings
 
 import numpy as np
 import torch
@@ -41,6 +42,19 @@ class DatasetAndModelContractTest(unittest.TestCase):
                 np.array([1.0], dtype=np.float32),
                 2,
             )
+
+    def test_adjacency_normalization_has_no_uninitialized_where_warning(self):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            normalized = build_normalized_adjacency(
+                np.array([[0], [1]], dtype=np.int64),
+                np.array([1.0], dtype=np.float32),
+                2,
+            )
+        self.assertTrue(np.isfinite(normalized).all())
+        self.assertFalse(
+            any("where" in str(warning.message) for warning in caught)
+        )
 
     def test_model_contract_rejects_wrong_feature_count(self):
         adjacency = np.eye(2, dtype=np.float32)

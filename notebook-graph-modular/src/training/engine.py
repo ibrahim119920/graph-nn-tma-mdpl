@@ -37,10 +37,12 @@ class EpochRecord:
 class TrainingResult:
     records: list[EpochRecord] = field(default_factory=list)
     best_metric: float = float("inf")
+    best_epoch: int | None = None
     stopped_early: bool = False
 
-    def history_dict(self) -> dict[str, list[float]]:
+    def history_dict(self, *, epochs_requested: int | None = None) -> dict:
         return {
+            "epoch": [record.epoch for record in self.records],
             "train": [record.train_loss for record in self.records],
             "teacher_val": [
                 record.teacher_validation_loss for record in self.records
@@ -49,6 +51,19 @@ class TrainingResult:
                 record.rollout_validation_loss for record in self.records
             ],
             "lr": [record.learning_rate for record in self.records],
+            "duration_seconds": [
+                record.duration_seconds for record in self.records
+            ],
+            "epochs_ran": len(self.records),
+            "epochs_requested": epochs_requested,
+            "best_epoch": self.best_epoch,
+            "best_rollout_validation_rmse_normalized": self.best_metric,
+            "stopped_early": self.stopped_early,
+            "stop_reason": (
+                "early_stopping"
+                if self.stopped_early
+                else "max_epochs_reached"
+            ),
         }
 
 
@@ -120,6 +135,9 @@ def fit_with_rollout(
     result = TrainingResult()
     for epoch in range(1, epochs + 1):
         start_time = time.time()
+        # Capture the LR before scheduler.step().  This is the value that was
+        # actually used by optimizer.step() in this epoch.
+        learning_rate = optimizer.param_groups[0]["lr"]
         train_loss = run_epoch(
             model,
             train_loader,
@@ -146,13 +164,15 @@ def fit_with_rollout(
             improvement_callback.on_improvement(
                 model, epoch, rollout_validation_loss
             )
+        if improved:
+            result.best_epoch = epoch
 
         record = EpochRecord(
             epoch=epoch,
             train_loss=train_loss,
             teacher_validation_loss=teacher_validation_loss,
             rollout_validation_loss=rollout_validation_loss,
-            learning_rate=optimizer.param_groups[0]["lr"],
+            learning_rate=learning_rate,
             duration_seconds=duration,
             improved=improved,
         )

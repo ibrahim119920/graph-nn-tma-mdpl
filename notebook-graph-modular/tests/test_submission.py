@@ -3,7 +3,11 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from src.inference.submission import build_submission, predictions_to_frame
+from src.inference.submission import (
+    build_submission,
+    predictions_to_frame,
+    summarize_submission,
+)
 
 
 class SubmissionTest(unittest.TestCase):
@@ -40,6 +44,21 @@ class SubmissionTest(unittest.TestCase):
                 {pd.Timestamp("2025-01-01"): np.array([1.0])},
                 ["A", "B"],
             )
+
+    def test_summary_reports_submission_validation_and_distribution(self):
+        submission = pd.DataFrame(
+            {
+                "id": ["one", "two", "three"],
+                "tma_mdpl": [1.0, 2.0, 4.0],
+            }
+        )
+        summary = summarize_submission(submission)
+        self.assertEqual(summary["columns"], ["id", "tma_mdpl"])
+        self.assertEqual(summary["rows"], 3)
+        self.assertEqual(summary["id_unique"], 3)
+        self.assertEqual(summary["prediction_unique_values"], 3)
+        self.assertEqual(summary["prediction_min"], 1.0)
+        self.assertEqual(summary["prediction_max"], 4.0)
 
 
 if __name__ == "__main__":

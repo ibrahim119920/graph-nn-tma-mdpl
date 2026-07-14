@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -91,6 +92,7 @@ def make_submission(
     )
     submission, fallback_count = build_submission(sample, prediction_frame)
     save_submission(submission, output_path)
+    result = replace(result, fallback_count=fallback_count)
     emit = logger.info if logger else print
     emit(
         f"Berhasil diprediksi: {len(result.predictions)} / "
