@@ -24,6 +24,7 @@ class TemporalGNN(nn.Module):
             "A_norm", torch.from_numpy(normalized_adjacency)
         )
         self.num_nodes = num_nodes
+        self.num_features = num_features
 
         self.gcn1 = GCNLayer(num_features, gcn_hidden)
         self.local_skip = nn.Linear(num_features, gcn_hidden)
@@ -43,7 +44,18 @@ class TemporalGNN(nn.Module):
         )
 
     def forward(self, features: torch.Tensor) -> torch.Tensor:
+        if features.ndim != 4:
+            raise ValueError(
+                "Input TemporalGNN harus 4D (batch,time,nodes,features), "
+                f"diterima: {tuple(features.shape)}"
+            )
         batch_size, time_steps, num_nodes, _num_features = features.shape
+        if num_nodes != self.num_nodes or _num_features != self.num_features:
+            raise ValueError(
+                "Kontrak input TemporalGNN tidak cocok: "
+                f"nodes/features={num_nodes}/{_num_features}, "
+                f"model mengharapkan {self.num_nodes}/{self.num_features}."
+            )
         gcn_output: list[torch.Tensor] = []
         for time_index in range(time_steps):
             hidden = self.gcn1(
@@ -65,4 +77,3 @@ class TemporalGNN(nn.Module):
         hidden_last = hidden_n.squeeze(0)
         output = self.head(hidden_last).view(batch_size, num_nodes)
         return output
-

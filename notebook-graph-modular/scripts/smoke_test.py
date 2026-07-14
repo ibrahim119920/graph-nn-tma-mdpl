@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import argparse
+import importlib
+import pkgutil
 import sys
 from pathlib import Path
 
@@ -12,12 +15,23 @@ if str(PROJECT_ROOT) not in sys.path:
 import numpy as np
 import torch
 
+import src
 from src.graph.adjacency import build_normalized_adjacency
 from src.models import TemporalGNN
 from src.utils.config import load_project_config
 
 
 def run_smoke_test() -> tuple[int, int]:
+    # Import every production module. This detects broken relative/absolute
+    # imports and accidental circular dependencies without reading competition
+    # data or starting training.
+    module_names = [
+        module.name
+        for module in pkgutil.walk_packages(src.__path__, prefix="src.")
+    ]
+    for module_name in module_names:
+        importlib.import_module(module_name)
+
     config = load_project_config(PROJECT_ROOT / "configs" / "default.json")
     edge_index = np.array([[0, 1], [1, 0]], dtype=np.int64)
     edge_weight = np.array([2.0, 2.0], dtype=np.float32)
@@ -29,7 +43,7 @@ def run_smoke_test() -> tuple[int, int]:
         gcn_hidden=config.model.gcn_hidden,
         gru_hidden=config.model.gru_hidden,
         dropout=config.model.dropout,
-    ).eval()
+    ).to(torch.device("cpu")).eval()
     features = torch.zeros((1, 4, 2, 3), dtype=torch.float32)
     with torch.no_grad():
         output = model(features)
@@ -39,10 +53,12 @@ def run_smoke_test() -> tuple[int, int]:
 
 
 def main() -> None:
+    argparse.ArgumentParser(
+        description="Import seluruh modul inti dan jalankan forward pass CPU kecil."
+    ).parse_args()
     shape = run_smoke_test()
     print(f"SMOKE_TEST_OK output_shape={shape}")
 
 
 if __name__ == "__main__":
     main()
-

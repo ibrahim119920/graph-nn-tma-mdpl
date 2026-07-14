@@ -9,9 +9,28 @@ import pandas as pd
 
 
 def parse_sample_submission(path: str | Path) -> pd.DataFrame:
-    sample = pd.read_csv(path)
-    sample["datetime"] = pd.to_datetime(sample["id"].str[:19])
-    sample["nama_pos"] = sample["id"].str[22:]
+    source = Path(path)
+    if not source.is_file():
+        raise FileNotFoundError(f"sample_submission.csv tidak ditemukan: {source}")
+    sample = pd.read_csv(source)
+    if "id" not in sample.columns:
+        raise ValueError(f"sample_submission.csv tidak memiliki kolom wajib 'id': {source}")
+    if sample.empty:
+        raise ValueError(f"sample_submission.csv kosong: {source}")
+    if sample["id"].isna().any() or sample["id"].duplicated().any():
+        raise ValueError("sample_submission.csv memiliki id kosong atau duplikat.")
+    identifier = sample["id"].astype(str)
+    parsed = identifier.str.extract(
+        r"^(?P<datetime>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) - (?P<nama_pos>.+)$"
+    )
+    if parsed.isna().any().any():
+        examples = identifier[parsed.isna().any(axis=1)].head(3).tolist()
+        raise ValueError(
+            "Format id sample_submission tidak valid; mengharapkan "
+            f"'YYYY-MM-DD HH:MM:SS - nama_pos'. Contoh: {examples}"
+        )
+    sample["datetime"] = pd.to_datetime(parsed["datetime"], errors="raise")
+    sample["nama_pos"] = parsed["nama_pos"].to_numpy()
     return sample
 
 
@@ -19,12 +38,19 @@ def predictions_to_frame(
     predictions: dict[pd.Timestamp, np.ndarray],
     node_order: list[str],
 ) -> pd.DataFrame:
+    if not node_order or len(set(node_order)) != len(node_order):
+        raise ValueError("node_order prediction harus tidak kosong dan unik.")
+    if not predictions:
+        raise ValueError("Tidak ada prediction yang tersedia untuk membuat submission.")
     for timestamp, prediction in predictions.items():
-        if np.asarray(prediction).shape != (len(node_order),):
+        values = np.asarray(prediction)
+        if values.shape != (len(node_order),):
             raise ValueError(
                 f"Prediksi {timestamp} tidak sejajar dengan node_order: "
-                f"{np.asarray(prediction).shape} != ({len(node_order)},)"
+                f"{values.shape} != ({len(node_order)},)"
             )
+        if not np.isfinite(values).all():
+            raise ValueError(f"Prediksi {timestamp} mengandung NaN atau infinity.")
     frame = pd.DataFrame(predictions).T
     frame.columns = node_order
     frame.index.name = "datetime"
@@ -35,6 +61,17 @@ def build_submission(
     sample_submission: pd.DataFrame,
     prediction_frame: pd.DataFrame,
 ) -> tuple[pd.DataFrame, int]:
+    required_sample_columns = {"id", "datetime", "nama_pos"}
+    missing_sample_columns = sorted(required_sample_columns - set(sample_submission))
+    if missing_sample_columns:
+        raise ValueError(
+            "sample_submission yang diparse tidak lengkap; kolom hilang: "
+            f"{missing_sample_columns}"
+        )
+    if prediction_frame.index.name != "datetime":
+        raise ValueError("prediction_frame harus memiliki index bernama 'datetime'.")
+    if prediction_frame.columns.duplicated().any():
+        raise ValueError("prediction_frame memiliki node/kolom duplikat.")
     if sample_submission["id"].duplicated().any():
         raise ValueError("sample_submission memiliki id duplikat.")
     prediction_long = prediction_frame.reset_index().melt(
@@ -56,6 +93,14 @@ def build_submission(
         fallback_mean = submission.groupby("nama_pos")[
             "tma_mdpl_pred"
         ].transform("mean")
+        unavailable_stations = sorted(
+            submission.loc[fallback_mean.isna(), "nama_pos"].unique().tolist()
+        )
+        if unavailable_stations:
+            raise ValueError(
+                "Prediction tidak mencakup station sample_submission berikut: "
+                f"{unavailable_stations}"
+            )
         submission["tma_mdpl_pred"] = submission[
             "tma_mdpl_pred"
         ].fillna(fallback_mean)
@@ -67,7 +112,10 @@ def build_submission(
     )
     final = final.rename(columns={"tma_mdpl_pred": "tma_mdpl"})
     if final.shape[0] != sample_submission.shape[0]:
-        raise ValueError("Jumlah baris tidak cocok dengan sample_submission.")
+        raise ValueError(
+            "Jumlah baris submission tidak cocok dengan sample_submission: "
+            f"{final.shape[0]} != {sample_submission.shape[0]}"
+        )
     if final["id"].tolist() != sample_submission["id"].tolist():
         raise ValueError("Urutan id submission berubah dari sample_submission.")
     if final["tma_mdpl"].isna().any():
@@ -78,4 +126,6 @@ def build_submission(
 
 
 def save_submission(submission: pd.DataFrame, path: str | Path) -> None:
-    submission.to_csv(path, index=False)
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    submission.to_csv(destination, index=False)

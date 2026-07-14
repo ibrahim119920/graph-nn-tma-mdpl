@@ -1,6 +1,8 @@
-# TODO Refactor `notebook-graph.ipynb`
+# Historical TODO — Refactor `notebook-graph.ipynb`
 
-Daftar ini adalah backlog implementasi untuk rencana pada `REFACTOR_PLAN.md`. Tidak satu pun item di bawah telah diimplementasikan oleh audit ini.
+> **Status aktual (2026-07-14):** modularisasi baseline telah diwujudkan pada branch `modular-version` di `notebook-graph-modular/src/` dan `notebook-graph-modular/scripts/`. Entry point, config lokal/Kaggle, validasi schema/alignment, smoke test, unit test, seed, dan launcher Kaggle telah tersedia. Dokumen ini dipertahankan sebagai snapshot audit/backlog historis; checkbox dan struktur `src/hydro_gnn/` di bawah **bukan** status implementasi saat ini dan tidak boleh dipakai sebagai panduan runtime.
+
+Untuk command dan status operasional terkini, lihat `notebook-graph-modular/README.md`. Item correctness/metodologi yang belum terverifikasi (misalnya provenance fitur lingkungan) tetap relevan sebagai pekerjaan riset terpisah.
 
 ## P0 — Bekukan baseline dan cegah perubahan behavior tanpa sengaja
 

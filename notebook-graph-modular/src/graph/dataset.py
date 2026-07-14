@@ -25,6 +25,7 @@ def build_graph_dataloaders(
     x_validation: np.ndarray,
     y_validation: np.ndarray,
     batch_size: int,
+    seed: int | None = None,
 ) -> tuple[
     GraphTimeSeriesDataset,
     GraphTimeSeriesDataset,
@@ -33,11 +34,16 @@ def build_graph_dataloaders(
 ]:
     train_dataset = GraphTimeSeriesDataset(x_train, y_train)
     validation_dataset = GraphTimeSeriesDataset(x_validation, y_validation)
+    generator = None
+    if seed is not None:
+        generator = torch.Generator()
+        generator.manual_seed(seed)
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
         shuffle=True,
         drop_last=False,
+        generator=generator,
     )
     validation_loader = DataLoader(
         validation_dataset,
@@ -50,4 +56,3 @@ def build_graph_dataloaders(
         train_loader,
         validation_loader,
     )
-

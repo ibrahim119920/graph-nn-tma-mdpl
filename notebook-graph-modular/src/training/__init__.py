@@ -6,6 +6,7 @@ from .checkpoints import (
     load_checkpoint,
     load_temporal_gnn_from_checkpoint,
     save_checkpoint,
+    validate_checkpoint_model_compatibility,
     validate_checkpoint_dataset_alignment,
 )
 from .engine import EpochRecord, TrainingResult, fit_with_rollout, run_epoch
@@ -22,5 +23,6 @@ __all__ = [
     "load_temporal_gnn_from_checkpoint",
     "run_epoch",
     "save_checkpoint",
+    "validate_checkpoint_model_compatibility",
     "validate_checkpoint_dataset_alignment",
 ]

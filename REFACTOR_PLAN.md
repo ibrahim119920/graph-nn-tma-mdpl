@@ -1,4 +1,6 @@
-# Rencana Refactor `notebook-graph.ipynb`
+# Historical Refactor Plan — `notebook-graph.ipynb`
+
+> **Status aktual (2026-07-14):** rencana ini adalah audit sebelum modularisasi. Implementasi modular sekarang berada di `notebook-graph-modular/` pada branch `modular-version`; notebook lama dipertahankan sebagai golden reference. Deskripsi “belum dibuat” di dokumen ini bersifat historis, bukan status repository saat ini. Lihat `notebook-graph-modular/README.md` untuk cara menjalankan project.
 
 ## 1. Ruang lingkup audit
 
@@ -529,4 +531,3 @@ Refactor dapat dianggap selesai bila:
 - Submission memverifikasi ID, order, uniqueness, finite values, dan jumlah baris.
 - Eksperimen residual tidak menimpa state baseline dan tidak wajib dua GPU secara hard-coded.
 - Notebook, jika tetap dipertahankan, hanya menjadi thin orchestration/reporting layer.
-

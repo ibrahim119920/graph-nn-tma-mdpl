@@ -52,6 +52,13 @@ class LoggingConfig:
 
 
 @dataclass(frozen=True)
+class RuntimeConfig:
+    """Execution settings that do not alter the model methodology."""
+
+    seed: int = 2026
+
+
+@dataclass(frozen=True)
 class ProjectConfig:
     project_name: str
     workspace_root: Path
@@ -60,6 +67,7 @@ class ProjectConfig:
     training: TrainingConfig
     inference: InferenceConfig
     logging: LoggingConfig
+    runtime: RuntimeConfig
     source_path: Path
     raw: dict[str, Any]
 
@@ -71,7 +79,19 @@ def _resolve_path(value: str, workspace_root: Path) -> Path:
 
 def load_project_config(path: str | Path) -> ProjectConfig:
     source_path = Path(path).expanduser().resolve()
-    raw = json.loads(source_path.read_text(encoding="utf-8"))
+    if not source_path.is_file():
+        raise FileNotFoundError(
+            f"File konfigurasi tidak ditemukan atau bukan file: {source_path}"
+        )
+    try:
+        raw = json.loads(source_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        raise ValueError(
+            f"JSON konfigurasi tidak valid: {source_path} "
+            f"(baris {error.lineno}, kolom {error.colno})"
+        ) from error
+    if not isinstance(raw, dict):
+        raise ValueError(f"Root konfigurasi harus object JSON: {source_path}")
     project_root = source_path.parent.parent
     workspace_value = Path(raw.get("workspace_root", ".")).expanduser()
     workspace_root = (
@@ -80,7 +100,18 @@ def load_project_config(path: str | Path) -> ProjectConfig:
         else (project_root / workspace_value)
     ).resolve()
 
-    path_values = raw["paths"]
+    path_values = raw.get("paths")
+    if not isinstance(path_values, dict):
+        raise ValueError(
+            f"Konfigurasi harus memiliki object 'paths': {source_path}"
+        )
+    required_path_keys = set(PathConfig.__dataclass_fields__)
+    missing_path_keys = sorted(required_path_keys - set(path_values))
+    if missing_path_keys:
+        raise ValueError(
+            "Konfigurasi paths tidak lengkap pada "
+            f"{source_path}: {missing_path_keys}"
+        )
     paths = PathConfig(
         **{
             key: _resolve_path(value, workspace_root)
@@ -95,6 +126,7 @@ def load_project_config(path: str | Path) -> ProjectConfig:
         training=TrainingConfig(**raw.get("training", {})),
         inference=InferenceConfig(**raw.get("inference", {})),
         logging=LoggingConfig(**raw.get("logging", {})),
+        runtime=RuntimeConfig(**raw.get("runtime", {})),
         source_path=source_path,
         raw=raw,
     )
@@ -113,3 +145,5 @@ def validate_project_config(config: ProjectConfig) -> None:
         raise ValueError("dropout harus berada pada [0, 1).")
     if config.inference.n_lags <= 0 or config.inference.time_window <= 0:
         raise ValueError("n_lags dan time_window harus positif.")
+    if not isinstance(config.runtime.seed, int) or config.runtime.seed < 0:
+        raise ValueError("runtime.seed harus bilangan bulat non-negatif.")

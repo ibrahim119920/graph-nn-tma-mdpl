@@ -40,8 +40,12 @@ def evaluate_loader(
             predictions.append(prediction)
             targets.append(target_batch.numpy())
 
+    if not predictions:
+        raise ValueError("DataLoader evaluation kosong; tidak ada output untuk divalidasi.")
     prediction_normalized = np.concatenate(predictions, axis=0)
     target_normalized = np.concatenate(targets, axis=0)
+    if not np.isfinite(prediction_normalized).all():
+        raise FloatingPointError("Output model evaluation mengandung NaN atau infinity.")
     prediction = denormalize_target(prediction_normalized)
     target = denormalize_target(target_normalized)
     return EvaluationResult(
@@ -53,4 +57,3 @@ def evaluate_loader(
         mae=mae(prediction, target),
         per_node_rmse=per_node_rmse(prediction, target),
     )
-

@@ -10,6 +10,23 @@ def build_normalized_adjacency(
     edge_weight: np.ndarray | None,
     num_nodes: int,
 ) -> np.ndarray:
+    if num_nodes <= 0:
+        raise ValueError(f"num_nodes harus positif, diterima: {num_nodes}")
+    if edge_index.ndim != 2 or edge_index.shape[0] != 2:
+        raise ValueError(f"edge_index harus berbentuk (2,E), diterima: {edge_index.shape}")
+    if edge_weight is not None and len(edge_weight) != edge_index.shape[1]:
+        raise ValueError(
+            "Panjang edge_weight harus sama dengan jumlah edge: "
+            f"{len(edge_weight)} != {edge_index.shape[1]}"
+        )
+    if edge_index.size and (
+        edge_index.min() < 0 or edge_index.max() >= num_nodes
+    ):
+        raise ValueError("edge_index berisi indeks node di luar rentang.")
+    if edge_weight is not None and (
+        not np.isfinite(edge_weight).all() or (edge_weight < 0).any()
+    ):
+        raise ValueError("edge_weight harus finite dan non-negatif.")
     adjacency = np.zeros((num_nodes, num_nodes), dtype=np.float32)
     for edge_position in range(edge_index.shape[1]):
         source = edge_index[0, edge_position]
@@ -31,4 +48,3 @@ def build_normalized_adjacency(
     degree_matrix = np.diag(degree_inverse_sqrt)
     normalized = degree_matrix @ adjacency @ degree_matrix
     return normalized.astype(np.float32)
-

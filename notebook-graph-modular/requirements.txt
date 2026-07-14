@@ -1,7 +1,5 @@
-numpy>=1.26
-pandas>=2.0
-geopandas>=0.14
-shapely>=2.0
-matplotlib>=3.8
-torch>=2.1
-
+numpy>=1.26,<3
+pandas>=2.0,<3
+geopandas>=0.14,<2
+shapely>=2.0,<3
+torch>=2.1,<3

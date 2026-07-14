@@ -17,6 +17,8 @@ from src.utils import (
     ExperimentArtifactStore,
     configure_logging,
     load_project_config,
+    seed_everything,
+    validate_stage_paths,
 )
 
 
@@ -26,10 +28,25 @@ VALID_STAGES = {"build", "train", "evaluate", "submission", "pipeline"}
 def run_from_config(
     config_path: str | Path,
     stage: str = "pipeline",
+    dry_run: bool = False,
 ) -> dict:
     if stage not in VALID_STAGES:
         raise ValueError(f"Stage tidak valid: {stage}")
     config = load_project_config(config_path)
+    validate_stage_paths(config, stage)
+    _validate_stage_contract(config, stage)
+    if dry_run:
+        from scripts.smoke_test import run_smoke_test
+
+        smoke_shape = run_smoke_test()
+        return {
+            "dry_run": True,
+            "stage": stage,
+            "config_path": config.source_path,
+            "workspace_root": config.workspace_root,
+            "smoke_output_shape": smoke_shape,
+        }
+    seed_everything(config.runtime.seed)
     for path in (
         config.paths.checkpoint.parent,
         config.paths.submission.parent,
@@ -54,6 +71,7 @@ def run_from_config(
         status="running",
     )
     logger.info("Run %s dimulai dengan stage=%s", artifacts.run_id, stage)
+    logger.info("Seed: %s", config.runtime.seed)
     result: dict = {
         "run_id": artifacts.run_id,
         "artifact_dir": artifacts.run_dir,
@@ -139,6 +157,67 @@ def run_from_config(
         raise
 
 
+def _validate_stage_contract(config, stage: str) -> None:
+    """Load lightweight schemas before a long-running stage starts."""
+    if stage in {"build", "pipeline"}:
+        from src.data.loading import (
+            load_environment_data,
+            load_station_coordinates,
+            load_test_data,
+            load_train_data,
+        )
+        from src.features.environment import DEFAULT_ENVIRONMENT_FEATURES
+
+        # These reads validate required columns and unique identifiers before
+        # graph construction or training starts. HydroRIVERS itself is checked
+        # by the preflight path validator and is loaded by the build stage.
+        load_train_data(config.paths.raw_data_root)
+        load_test_data(config.paths.raw_data_root)
+        load_station_coordinates(config.paths.raw_data_root)
+        load_environment_data(
+            config.paths.raw_data_root, DEFAULT_ENVIRONMENT_FEATURES
+        )
+    if stage in {"submission", "pipeline"}:
+        from src.inference.submission import parse_sample_submission
+
+        parse_sample_submission(config.paths.sample_submission)
+    if stage in {"train", "evaluate", "submission"}:
+        from src.data.loading import load_numpy_dataset
+
+        dataset = load_numpy_dataset(config.paths.dataset)
+        feature_columns = list(dataset["feature_cols"])
+        missing_lag_columns = [
+            f"wl_t-{lag}"
+            for lag in range(1, config.inference.n_lags + 1)
+            if f"wl_t-{lag}" not in feature_columns
+        ]
+        if missing_lag_columns:
+            raise ValueError(
+                "Dataset feature schema tidak cocok dengan inference.n_lags="
+                f"{config.inference.n_lags}; fitur hilang: {missing_lag_columns}"
+            )
+        dataset_time_window = int(dataset["X_train"].shape[1])
+        if dataset_time_window != config.inference.time_window:
+            raise ValueError(
+                "time_window config dan dataset berbeda: "
+                f"{config.inference.time_window} != {dataset_time_window}"
+            )
+        if stage in {"evaluate", "submission"}:
+            from src.training import (
+                load_checkpoint,
+                validate_checkpoint_dataset_alignment,
+                validate_checkpoint_model_compatibility,
+            )
+
+            checkpoint = load_checkpoint(config.paths.checkpoint, "cpu")
+            validate_checkpoint_dataset_alignment(checkpoint, dataset)
+            validate_checkpoint_model_compatibility(
+                checkpoint,
+                gcn_hidden=config.model.gcn_hidden,
+                gru_hidden=config.model.gru_hidden,
+            )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -150,8 +229,22 @@ def main() -> None:
         choices=sorted(VALID_STAGES),
         default="pipeline",
     )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help=(
+            "Validasi config, input path, schema, dan checkpoint tanpa "
+            "membangun dataset, melatih model, atau menulis artifact."
+        ),
+    )
     args = parser.parse_args()
-    run_from_config(args.config, args.stage)
+    result = run_from_config(args.config, args.stage, args.dry_run)
+    if args.dry_run:
+        print(
+            "DRY_RUN_OK "
+            f"stage={result['stage']} config={result['config_path']} "
+            f"smoke_output_shape={result['smoke_output_shape']}"
+        )
 
 
 if __name__ == "__main__":

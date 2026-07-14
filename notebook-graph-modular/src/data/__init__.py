@@ -5,6 +5,7 @@ from .loading import (
     load_hydrorivers,
     load_numpy_dataset,
     load_station_coordinates,
+    load_test_data,
     load_train_data,
 )
 from .preprocessing import (
@@ -38,6 +39,7 @@ __all__ = [
     "load_hydrorivers",
     "load_numpy_dataset",
     "load_station_coordinates",
+    "load_test_data",
     "load_train_data",
     "process_datetime_column",
     "validate_station_coverage",

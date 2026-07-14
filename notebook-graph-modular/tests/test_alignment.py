@@ -8,9 +8,17 @@ from src.training.checkpoints import validate_checkpoint_dataset_alignment
 class AlignmentTest(unittest.TestCase):
     def setUp(self):
         self.checkpoint = {
+            "model_state_dict": {},
             "num_nodes": 2,
             "num_features": 3,
             "A_norm": np.eye(2, dtype=np.float32),
+            "feat_mean": np.zeros(3, dtype=np.float32),
+            "feat_std": np.ones(3, dtype=np.float32),
+            "station_center": np.zeros(2, dtype=np.float32),
+            "station_scale": np.ones(2, dtype=np.float32),
+            "station_low": np.full(2, -1.0, dtype=np.float32),
+            "station_high": np.full(2, 1.0, dtype=np.float32),
+            "time_window": 2,
             "node_order": ["A", "B"],
             "feature_cols": ["wl_t", "x", "y"],
             "wl_value_positions": np.array([0]),

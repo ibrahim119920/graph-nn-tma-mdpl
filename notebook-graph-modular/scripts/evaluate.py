@@ -23,6 +23,7 @@ from src.training import (
     validate_checkpoint_dataset_alignment,
 )
 from src.utils.config import ProjectConfig
+from src.utils.runtime import select_device
 from src.utils.scaling import GraphFeatureScaler
 
 
@@ -33,9 +34,7 @@ def evaluate_checkpoint(
     config: ProjectConfig | None = None,
     logger=None,
 ):
-    device = device or torch.device(
-        "cuda" if torch.cuda.is_available() else "cpu"
-    )
+    device = torch.device(device) if device is not None else select_device()
     data = load_numpy_dataset(dataset_path)
     checkpoint = load_checkpoint(checkpoint_path, device)
     validate_checkpoint_dataset_alignment(checkpoint, data)

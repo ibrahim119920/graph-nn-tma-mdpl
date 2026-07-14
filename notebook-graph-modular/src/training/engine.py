@@ -81,6 +81,11 @@ def run_epoch(
                     )
             prediction = model(feature_batch)
             loss = criterion(prediction, target_batch)
+            if not torch.isfinite(loss):
+                raise FloatingPointError(
+                    "Loss training/validation mengandung NaN atau infinity; "
+                    "periksa input, scaler, atau output model."
+                )
 
             if training:
                 loss.backward()

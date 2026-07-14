@@ -32,6 +32,7 @@ from src.training import (
     fit_with_rollout,
 )
 from src.utils.config import ProjectConfig
+from src.utils.runtime import select_device
 from src.utils.scaling import GraphFeatureScaler
 
 
@@ -50,10 +51,8 @@ def train_baseline(
     config: ProjectConfig | None = None,
     logger=None,
 ) -> dict:
-    device = device or torch.device(
-        "cuda" if torch.cuda.is_available() else "cpu"
-    )
-    gpu_count = torch.cuda.device_count()
+    device = torch.device(device) if device is not None else select_device()
+    gpu_count = torch.cuda.device_count() if device.type == "cuda" else 0
     batch_size = config.training.batch_size if config else BATCH_SIZE
     epochs = config.training.epochs if config else EPOCHS
     learning_rate = (
@@ -112,6 +111,7 @@ def train_baseline(
         x_validation,
         y_validation,
         batch_size,
+        seed=config.runtime.seed if config else None,
     )
 
     normalized_adjacency = build_normalized_adjacency(

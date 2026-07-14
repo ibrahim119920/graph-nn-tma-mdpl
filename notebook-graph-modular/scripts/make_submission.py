@@ -27,6 +27,7 @@ from src.training import (
     validate_checkpoint_dataset_alignment,
 )
 from src.utils.config import ProjectConfig
+from src.utils.runtime import select_device
 
 
 def make_submission(
@@ -38,9 +39,7 @@ def make_submission(
     config: ProjectConfig | None = None,
     logger=None,
 ):
-    device = device or torch.device(
-        "cuda" if torch.cuda.is_available() else "cpu"
-    )
+    device = torch.device(device) if device is not None else select_device()
     checkpoint = load_checkpoint(checkpoint_path, device)
     data = load_numpy_dataset(dataset_path)
     validate_checkpoint_dataset_alignment(checkpoint, data)

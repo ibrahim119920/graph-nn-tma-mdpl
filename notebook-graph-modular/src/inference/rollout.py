@@ -142,6 +142,18 @@ def predict_autoregressive(
     feature_spec = AutoregressiveFeatureSpec.from_feature_columns(
         feature_columns, n_lags
     )
+    if target_datetimes.empty:
+        raise ValueError("Tidak ada datetime target pada sample_submission.")
+    if panel.ndim != 3:
+        raise ValueError(
+            f"panel inference harus 3D (time,nodes,features), diterima: {panel.shape}"
+        )
+    if panel.shape[1] != len(station_center) or panel.shape[2] != len(feature_columns):
+        raise ValueError(
+            "Kontrak panel inference tidak cocok dengan checkpoint: "
+            f"panel={panel.shape}, nodes/features checkpoint="
+            f"{len(station_center)}/{len(feature_columns)}."
+        )
     datetime_to_position = {
         dt: i for i, dt in enumerate(observation_datetimes)
     }
@@ -149,7 +161,18 @@ def predict_autoregressive(
         :, :, feature_spec.water_level_position
     ].copy()
 
-    last_train_position = datetime_to_position[pd.Timestamp(train_end)]
+    train_end_timestamp = pd.Timestamp(train_end)
+    if train_end_timestamp not in datetime_to_position:
+        raise ValueError(
+            f"train_end {train_end_timestamp} tidak ada pada obs_datetimes dataset."
+        )
+    missing_targets = target_datetimes.difference(observation_datetimes)
+    if len(missing_targets):
+        raise ValueError(
+            "Datetime sample_submission tidak ada pada observasi dataset: "
+            f"{missing_targets[:3].tolist()}"
+        )
+    last_train_position = datetime_to_position[train_end_timestamp]
     filled_training_cells = 0
     for node_index in range(station_center.shape[0]):
         column = water_level_series[
@@ -163,7 +186,7 @@ def predict_autoregressive(
 
     first_target_position = datetime_to_position[target_datetimes.min()]
     first_window_start = first_target_position - time_window
-    maximum_rolling_window = max(feature_spec.rolling_positions)
+    maximum_rolling_window = max(feature_spec.rolling_positions, default=0)
     history_start = max(
         0,
         first_window_start - max(n_lags, maximum_rolling_window),
@@ -171,10 +194,11 @@ def predict_autoregressive(
     required_history = water_level_series[
         history_start:first_target_position
     ]
-    assert not np.isnan(required_history).any(), (
-        "Histori tinggi air di batas train -> test masih kosong; "
-        "periksa data train, jangan mengisi dengan informasi masa depan."
-    )
+    if np.isnan(required_history).any() or not np.isfinite(required_history).all():
+        raise ValueError(
+            "Histori tinggi air di batas train -> test kosong/non-finite; "
+            "periksa data train, jangan mengisi dengan informasi masa depan."
+        )
 
     predictions: dict[pd.Timestamp, np.ndarray] = {}
     skipped: list[pd.Timestamp] = []
@@ -216,6 +240,10 @@ def predict_autoregressive(
                 normalized[None].astype(np.float32)
             ).to(device)
             prediction_normalized = model(feature_batch).cpu().numpy()[0]
+            if not np.isfinite(prediction_normalized).all():
+                raise FloatingPointError(
+                    f"Output model non-finite pada datetime {target_datetime}."
+                )
             raw_prediction = (
                 prediction_normalized * station_scale + station_center
             )
@@ -232,4 +260,3 @@ def predict_autoregressive(
         filled_training_cells=filled_training_cells,
         feature_spec=feature_spec,
     )
-
